@@ -1,0 +1,8 @@
+<webscript>
+<shortname>Site Documents List</shortname>
+<description>It fetches the site documents details</description>
+<url>/extension/libdoclist/{sitename}</url>
+<format default="json"/>
+<authentication>user</authentication>
+<transaction>required</transaction>
+</webscript>

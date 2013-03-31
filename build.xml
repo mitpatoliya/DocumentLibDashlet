@@ -1,0 +1,146 @@
+<!--
+    Author: Mittal Patoliya
+    Version: 1.5.1
+-->
+<project basedir="." default="dist-jar" name="Share Extras Build Script">
+
+   <!-- Allow override properties -->
+    <property file="build.properties" />
+    <property file="${user.home}/build.properties" />
+   
+	 <!-- Property default values. May be overridden using above files or via command-line args -->
+	    <property name="jar.name" value="share-extension.jar" />
+	    <property name="zip.name" value="share-extension.zip" />
+	    <property name="amp.name" value="share-extension.amp" />
+	    <property name="config.includes" value="**/*.*" />
+	    <property name="config.excludes" value="" />
+	    <property name="build.res.includes" value="**/*.*" />
+	    <property name="build.res.excludes" value="" />
+	    <property name="build.res.dir" value="webapps/share" />
+	    <property name="build.classes.dir" value="shared/classes" />
+	    <property name="build.lib.dir" value="shared/lib" />
+	    <property name="yuicompress.warn" value="false" />
+
+    <!-- Paths to local Tomcat instances -->
+    <property name="tomcat.repo.home" value="${tomcat.home}" />
+    <property name="tomcat.share.home" value="${tomcat.home}" />
+
+
+    <!-- Additional property values. Generally should not be overridden -->
+    <property name="config.dir" value="${basedir}/config" />
+	<property name="res.dir" value="${basedir}/source/web" />
+    <property name="build.dir" value="${basedir}/build" />
+    <property name="build.jar.dir" value="${build.dir}/jar" />
+    <property name="dist.dir" value="${build.dir}/dist" />
+
+	<!-- Additional classpath and task definitions -->
+    <path id="yuicompressor.classpath">
+        <fileset dir="lib">
+            <include name="yuicompressor-2.4.2.jar"/>
+            <include name="yui-compressor-ant-task-0.5.jar"/>
+        </fileset>
+    </path>
+   
+    <taskdef name="yuicompress" classname="net.noha.tools.ant.yuicompressor.tasks.YuiCompressorTask">
+        <classpath>
+            <path refid="yuicompressor.classpath" />
+        </classpath>
+    </taskdef>
+
+    <path id="ml-ant-http.classpath">
+        <fileset dir="lib">
+            <include name="ml-ant-http-1.1.1.jar" />
+        </fileset>
+    </path>
+   
+    <taskdef name="http" classname="org.missinglink.ant.task.http.HttpClientTask">
+        <classpath>
+            <path refid="ml-ant-http.classpath" />
+        </classpath>
+    </taskdef>
+    
+    
+    <!-- Main build target definitions -->
+    
+    
+   <!-- Clean out the build and distribution directories -->
+   <target name="clean" description="Clean out all build directories">
+      <delete dir="${build.dir}" />
+      <delete dir="${dist.dir}" />
+   </target>
+   
+   <!-- Create required prerequisite directory structure -->
+   <target name="prepare" description="Create initial build structures">
+       <mkdir dir="${build.dir}" />
+      <mkdir dir="${dist.dir}" />
+   </target>
+   
+    <target name="build-jar" description="Assemble configuration and resource files in a JAR file structure">
+        <mkdir dir="${build.jar.dir}" />
+        <!-- Copy configuration files, web scripts, etc. directly into the JAR so they appear on the 
+        classpath. -->
+        <copy todir="${build.jar.dir}" includeEmptyDirs="false">
+            <fileset dir="${config.dir}" includes="${config.includes}">
+                <!-- Spring config -->
+                <exclude name="web-application-config.xml" />
+                <exclude name="surf-config.xml" />
+                <exclude name="alfresco/slingshot-application-context.xml" />
+                <exclude name="alfresco/web-extension/custom-slingshot-application-context.xml" />
+                <!-- Surf config -->
+                <exclude name="alfresco/share*-config.xml" />
+                <exclude name="alfresco/web-extension/share-config-custom.xml" />
+                <exclude name="share-config-custom.xml" />
+                <!-- Global excludes -->
+                <exclude name="${config.excludes}" />
+            </fileset>
+        </copy>
+
+    	<!-- Copy web-tier resources into the JAR. These can then be loaded by browsers via Share's resources 
+        servlet by prefixing their path with '/res' -->
+        <mkdir dir="${build.jar.dir}/META-INF" />
+        <copy todir="${build.jar.dir}/META-INF" includeEmptyDirs="false">
+            <fileset dir="${res.dir}" includes="${build.res.includes}" excludes="${build.res.excludes}" />
+        </copy>
+        <!-- Map alfresco/web-extension/share-config-custom.xml to META-INF/share-config-custom.xml in the JAR -->
+        <copy todir="${build.jar.dir}/META-INF" includeEmptyDirs="false">
+            <fileset dir="${config.dir}">
+                <filename name="alfresco/web-extension/share-config-custom.xml" />
+            </fileset>
+            <globmapper from="alfresco/web-extension/*.xml" to="*.xml" handledirsep="true" />
+        </copy>
+        <copy todir="${build.jar.dir}/META-INF" includeEmptyDirs="false">
+            <fileset dir="${config.dir}">
+                <filename name="share-config-custom.xml" />
+            </fileset>
+        </copy>
+        <!-- Minify JS -->
+        <yuicompress fromdir="${res.dir}" todir="${build.jar.dir}/META-INF" excludes="**/*-min.js" warn="${yuicompress.warn}">
+            <include name="**/*.js" />
+        </yuicompress>
+    </target>
+   
+   <!-- Build the JAR file -->
+    <target name="dist-jar" depends="clean, prepare, build-jar" 
+      description="Build a JAR file containing configuration and resource files">
+      <jar destfile="${dist.dir}/${jar.name}">
+         <fileset dir="${build.jar.dir}" />
+      </jar>
+    </target>
+    
+    
+        <!--
+        Hot copy JAR file into a local Tomcat instance.
+    -->
+    <target name="hotcopy-tomcat-jar" depends="dist-jar" description="Hot copy JAR file into a local Tomcat instance">
+        <mkdir dir="${tomcat.repo.home}/${build.lib.dir}" />
+        <mkdir dir="${tomcat.share.home}/${build.lib.dir}" />
+        <copy todir="${tomcat.repo.home}/${build.lib.dir}">
+            <fileset file="${dist.dir}/${jar.name}" />
+        </copy>
+        <copy todir="${tomcat.share.home}/${build.lib.dir}">
+            <fileset file="${dist.dir}/${jar.name}" />
+        </copy>
+    </target>
+    
+       
+</project>

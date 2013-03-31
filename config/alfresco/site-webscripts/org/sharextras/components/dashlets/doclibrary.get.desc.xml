@@ -1,0 +1,6 @@
+<webscript>
+   <shortname>Documents Library List</shortname>
+   <description>Dashlet to list documents from Document Library of Alfresco Site</description>
+   <family>site-dashlet</family>
+   <url>/components/dashlets/doclibrary</url>
+</webscript>
